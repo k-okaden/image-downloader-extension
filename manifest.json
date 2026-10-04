@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Image Download Buttons",
+  "version": "1.0.0",
+  "description": "Adds a ⬇️ download button to every image on the page (img tags and CSS background images).",
+  "permissions": ["downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
