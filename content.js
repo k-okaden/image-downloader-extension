@@ -6,6 +6,9 @@
 
   const processed = new WeakSet();
   const elToBtn = new Map(); // 削除検知のため通常のMapを使用
+  const elToGetUrl = new Map(); // 集中ダウンロードモードで対象要素のURLを取り出すため
+  const FOCUS_KEY = "d"; // 集中ダウンロードモード中にこのキーで一番大きい画像を保存
+  const FOCUS_STORAGE_KEY = "focusMode";
 
   let attachedCount = 0;
 
@@ -103,6 +106,7 @@
     processed.add(el);
     const btn = createBtn(getUrl);
     elToBtn.set(el, btn);
+    elToGetUrl.set(el, getUrl);
     attachedCount++;
     positionBtn(el, btn);
     updateBadge();
@@ -114,6 +118,7 @@
     if (btn) {
       btn.remove();
       elToBtn.delete(el);
+      elToGetUrl.delete(el);
       processed.delete(el);
       attachedCount--;
       updateBadge();
@@ -224,4 +229,127 @@
 
   window.addEventListener("scroll", repositionAll, true);
   window.addEventListener("resize", repositionAll);
+
+  // ---- 集中ダウンロードモード ----
+  // 右上のトグルでON/OFF。ONの間は FOCUS_KEY を押すと、
+  // 画面内に見えている面積が一番大きい画像をダウンロードする。
+  let focusMode = false;
+
+  function visibleArea(el) {
+    const r = el.getBoundingClientRect();
+    const w = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0);
+    const h = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0);
+    return w > 0 && h > 0 ? w * h : 0;
+  }
+
+  function findLargestVisible() {
+    let best = null;
+    let bestArea = 0;
+    elToGetUrl.forEach((getUrl, el) => {
+      if (!el.isConnected) return;
+      const area = visibleArea(el);
+      if (area > bestArea && getUrl()) {
+        best = el;
+        bestArea = area;
+      }
+    });
+    return best;
+  }
+
+  function flashTarget(el, ok) {
+    const r = el.getBoundingClientRect();
+    const f = document.createElement("div");
+    f.className = "img-downloader-flash" + (ok ? "" : " error");
+    f.style.top = Math.max(r.top, 0) + "px";
+    f.style.left = Math.max(r.left, 0) + "px";
+    f.style.width = Math.min(r.right, window.innerWidth) - Math.max(r.left, 0) + "px";
+    f.style.height = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, 0) + "px";
+    document.documentElement.appendChild(f);
+    setTimeout(() => f.remove(), 500);
+  }
+
+  function downloadLargest() {
+    const el = findLargestVisible();
+    if (!el) {
+      log("集中ダウンロード: 対象画像なし");
+      return;
+    }
+    const url = elToGetUrl.get(el)();
+    chrome.runtime.sendMessage({ type: "download-image", url }, (response) => {
+      const ok = !!(response && response.ok);
+      flashTarget(el, ok);
+      if (!ok) log("ダウンロード失敗:", response && response.error);
+    });
+  }
+
+  function isTypingTarget(t) {
+    if (!t) return false;
+    if (t.isContentEditable) return true;
+    const tag = t.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+  }
+
+  window.addEventListener(
+    "keydown",
+    (e) => {
+      if (!focusMode) return;
+      if (e.key.toLowerCase() !== FOCUS_KEY) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      if (isTypingTarget(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      downloadLargest();
+    },
+    true
+  );
+
+  // 右上のトグル(ページ内オーバーレイ)
+  // 拡張機能のUIとして描画されるので、ページのCSSに影響されないようShadow DOMに入れる
+  let toggleInput = null;
+  function createToggle() {
+    const host = document.createElement("div");
+    host.id = "__img_dl_focus_toggle__";
+    const shadow = host.attachShadow({ mode: "closed" });
+    shadow.innerHTML = `
+      <style>
+        :host { all: initial; position: fixed; top: 8px; right: 8px; z-index: 2147483647; }
+        label { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 14px;
+          background: rgba(0,0,0,.65); color: #fff; font: 12px/1 sans-serif; cursor: pointer;
+          user-select: none; box-shadow: 0 1px 4px rgba(0,0,0,.4); opacity: .7; transition: opacity .15s; }
+        label:hover, label.on { opacity: 1; }
+        input { display: none; }
+        .sw { position: relative; width: 26px; height: 14px; border-radius: 7px; background: #888; transition: background .15s; }
+        .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
+          border-radius: 50%; background: #fff; transition: transform .15s; }
+        input:checked + .sw { background: #2e9e4f; }
+        input:checked + .sw::after { transform: translateX(12px); }
+      </style>
+      <label title="ONの間、${FOCUS_KEY.toUpperCase()}キーで画面内の一番大きい画像を保存">
+        <input type="checkbox"><span class="sw"></span><span>集中DL (${FOCUS_KEY.toUpperCase()})</span>
+      </label>`;
+    toggleInput = shadow.querySelector("input");
+    const label = shadow.querySelector("label");
+    toggleInput.addEventListener("change", () => {
+      chrome.storage.local.set({ [FOCUS_STORAGE_KEY]: toggleInput.checked });
+    });
+    host.__label = label;
+    document.documentElement.appendChild(host);
+    return host;
+  }
+
+  const toggleHost = createToggle();
+
+  function applyFocusMode(on) {
+    focusMode = !!on;
+    toggleInput.checked = focusMode;
+    toggleHost.__label.classList.toggle("on", focusMode);
+  }
+
+  // ON/OFFは全タブ共通で保存し、他タブでの切り替えにも追従する
+  chrome.storage.local.get(FOCUS_STORAGE_KEY, (res) => applyFocusMode(res[FOCUS_STORAGE_KEY]));
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[FOCUS_STORAGE_KEY]) {
+      applyFocusMode(changes[FOCUS_STORAGE_KEY].newValue);
+    }
+  });
 })();

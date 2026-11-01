@@ -12,6 +12,8 @@ A small Chrome extension (Manifest V3) that adds a ⬇️ button to every image 
   `<img>` タグと CSS の `background-image` の両方に対応
 - Follows dynamic pages (SPA navigation, pagination, modals, infinite scroll) without a reload
   ページ再読み込みなしで画像が切り替わるサイト(SPA、ページ送り、モーダル、無限スクロール)にも追従
+- **Focus download mode** (v0.2): turn on the toggle at the top right of the page, then press `D` to save the largest image currently visible on screen
+  **集中ダウンロードモード**(v0.2): ページ右上のトグルをONにすると、`D` キーで画面内に見えている一番大きい画像を保存。ON/OFFは全タブ共通で記憶され、入力欄での入力中は反応しません
 - Saved files go to `Downloads/downloaded-images/`
   保存先は `ダウンロード/downloaded-images/`
 

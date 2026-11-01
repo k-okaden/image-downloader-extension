@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Image Download Buttons",
-  "version": "1.0.0",
-  "description": "Adds a ⬇️ download button to every image on the page (img tags and CSS background images).",
-  "permissions": ["downloads"],
+  "version": "0.2.0",
+  "description": "ページ内の画像(imgタグ・CSS背景画像)に⬇️ダウンロードボタンを追加。集中ダウンロードモードではDキーで画面内の一番大きい画像を保存します。",
+  "permissions": ["downloads", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

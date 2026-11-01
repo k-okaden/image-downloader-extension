@@ -32,3 +32,24 @@
 .img-downloader-btn.error {
   background: rgba(200, 40, 40, 0.85);
 }
+
+/* 集中ダウンロードモードでDキー保存した画像を一瞬ハイライト */
+.img-downloader-flash {
+  position: fixed;
+  z-index: 2147483646;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 4px solid rgba(46, 158, 79, 0.95);
+  background: rgba(46, 158, 79, 0.15);
+  animation: img-downloader-flash 0.5s ease-out forwards;
+}
+
+.img-downloader-flash.error {
+  border-color: rgba(200, 40, 40, 0.95);
+  background: rgba(200, 40, 40, 0.15);
+}
+
+@keyframes img-downloader-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
