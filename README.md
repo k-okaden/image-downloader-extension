@@ -14,6 +14,8 @@ A small Chrome extension (Manifest V3) that adds a ⬇️ button to every image 
   ページ再読み込みなしで画像が切り替わるサイト(SPA、ページ送り、モーダル、無限スクロール)にも追従
 - **Focus download mode** (v0.2): turn on the toggle at the top right of the page, then press `D` to save the largest image currently visible on screen
   **集中ダウンロードモード**(v0.2): ページ右上のトグルをONにすると、`D` キーで画面内に見えている一番大きい画像を保存。ON/OFFは全タブ共通で記憶され、入力欄での入力中は反応しません
+- **Continuous download** (v0.3): with focus mode on, click `◀ 連続` or `連続 ▶` to save every large image on screen, press ← / → to go to the next set, and repeat. It stops when no new images appear (the end), or when you press `Esc` / click `停止`
+  **連続ダウンロード**(v0.3): 集中ダウンロードモードがONのとき、`◀ 連続` / `連続 ▶` を押すと、画面内の大きい画像(3枚・6枚など)を全部保存 → ←/→キーで次へ、を繰り返します。新しい画像が出てこなくなったら(最後まで行ったら)自動で停止。`Esc` キーか `停止` ボタンでも止まります。キーでページごと切り替わるサイトでも、同じタブ内なら続きから再開します
 - Saved files go to `Downloads/downloaded-images/`
   保存先は `ダウンロード/downloaded-images/`
 
