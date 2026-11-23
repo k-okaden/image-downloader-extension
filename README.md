@@ -14,8 +14,8 @@ A small Chrome extension (Manifest V3) that adds a ⬇️ button to every image 
   ページ再読み込みなしで画像が切り替わるサイト(SPA、ページ送り、モーダル、無限スクロール)にも追従
 - **Focus download mode** (v0.2): turn on the toggle at the top right of the page, then press `D` to save the largest image currently visible on screen
   **集中ダウンロードモード**(v0.2): ページ右上のトグルをONにすると、`D` キーで画面内に見えている一番大きい画像を保存。ON/OFFは全タブ共通で記憶され、入力欄での入力中は反応しません
-- **Continuous download** (v0.3): with focus mode on, click `◀ 連続` or `連続 ▶` to save every large image on screen, press ← / → to go to the next set, and repeat. It stops when no new images appear (the end), or when you press `Esc` / click `停止`
-  **連続ダウンロード**(v0.3): 集中ダウンロードモードがONのとき、`◀ 連続` / `連続 ▶` を押すと、画面内の大きい画像(3枚・6枚など)を全部保存 → ←/→キーで次へ、を繰り返します。新しい画像が出てこなくなったら(最後まで行ったら)自動で停止。`Esc` キーか `停止` ボタンでも止まります。キーでページごと切り替わるサイトでも、同じタブ内なら続きから再開します
+- **Continuous download mode** (v0.3): a separate `連続DL` toggle below the focus toggle. Turn it on and click `◀ 開始` or `開始 ▶` to save every large image on screen, press ← / → to go to the next set, and repeat. It stops when no new images appear (the end), or when you press `Esc`, click `停止`, or turn the toggle off
+  **連続ダウンロードモード**(v0.3): 集中DLの下にある `連続DL` トグルで独立してON/OFF。ONにして `◀ 開始` / `開始 ▶` を押すと、画面内の大きい画像(3枚・6枚など)を全部保存 → ←/→キーで次へ、を繰り返します。新しい画像が出てこなくなったら(最後まで行ったら)自動で停止。`Esc` キー・`停止` ボタン・トグルOFFでも止まります。キーでページごと切り替わるサイトでも、同じタブ内なら続きから再開します
 - Saved files go to `Downloads/downloaded-images/`
   保存先は `ダウンロード/downloaded-images/`
 
@@ -25,6 +25,12 @@ A small Chrome extension (Manifest V3) that adds a ⬇️ button to every image 
 2. Open `chrome://extensions` / `chrome://extensions` を開く
 3. Turn on **Developer mode** / 「デベロッパーモード」をON
 4. Click **Load unpacked** and select this folder / 「パッケージ化されていない拡張機能を読み込む」でこのフォルダを選択
+
+## If a save dialog appears for every image / 1枚ごとに保存ダイアログが出る場合
+
+The extension already saves without a dialog, but Chrome's own setting overrides it. Turn off **"Ask where to save each file before downloading"** at `chrome://settings/downloads` (this applies to all downloads in Chrome).
+
+拡張機能側はダイアログなしで保存する設定になっていますが、Chrome本体の設定が優先されます。`chrome://settings/downloads` の **「ダウンロード前に各ファイルの保存場所を確認する」** をOFFにしてください(Chromeのすべてのダウンロードに適用されます)。
 
 ## Debugging / デバッグ
 

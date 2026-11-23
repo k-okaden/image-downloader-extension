@@ -303,7 +303,7 @@
     true
   );
 
-  // ---- 連続ダウンロード(集中ダウンロードモードの追加機能) ----
+  // ---- 連続ダウンロードモード ----
   // 画面内の大きい画像(3枚・6枚など)をまとめて保存 → ←/→キーで次へ、を繰り返す。
   // 進んでも新しい画像が出てこなくなったら(最後まで行ったら)自動で止まる。
   const AUTO_LARGE_RATIO = 0.4; // 一番大きい画像の面積のこの割合以上を「大きい画像」とみなす
@@ -467,7 +467,9 @@
 
   // 右上のトグル(ページ内オーバーレイ)
   // 拡張機能のUIとして描画されるので、ページのCSSに影響されないようShadow DOMに入れる
-  let toggleInput = null;
+  // 1段目: 集中DL(Dキー)、2段目: 連続DL(◀/▶で開始)。それぞれ独立してON/OFFできる
+  const CONTINUOUS_STORAGE_KEY = "continuousMode";
+  let continuousMode = false;
   let ui = null;
   function createToggle() {
     const host = document.createElement("div");
@@ -475,7 +477,8 @@
     const shadow = host.attachShadow({ mode: "closed" });
     shadow.innerHTML = `
       <style>
-        :host { all: initial; position: fixed; top: 8px; right: 8px; z-index: 2147483647; }
+        :host { all: initial; position: fixed; top: 8px; right: 8px; z-index: 2147483647;
+          display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
         .panel { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 14px;
           background: rgba(0,0,0,.65); color: #fff; font: 12px/1 sans-serif;
           user-select: none; box-shadow: 0 1px 4px rgba(0,0,0,.4); opacity: .7; transition: opacity .15s; }
@@ -488,7 +491,7 @@
         input:checked + .sw { background: #2e9e4f; }
         input:checked + .sw::after { transform: translateX(12px); }
         .auto { display: none; align-items: center; gap: 4px; padding-left: 6px; border-left: 1px solid rgba(255,255,255,.3); }
-        .panel.on .auto, .panel.running .auto { display: flex; }
+        .panel.on .auto { display: flex; }
         button { all: unset; cursor: pointer; padding: 3px 7px; border-radius: 9px; background: rgba(255,255,255,.18); }
         button:hover { background: rgba(255,255,255,.32); }
         .stop { display: none; background: #c83a3a; }
@@ -497,26 +500,41 @@
         .panel.running .go { display: none; }
         .status:empty { display: none; }
       </style>
-      <div class="panel">
+      <div class="panel focus">
         <label title="ONの間、${FOCUS_KEY.toUpperCase()}キーで画面内の一番大きい画像を保存">
           <input type="checkbox"><span class="sw"></span><span>集中DL (${FOCUS_KEY.toUpperCase()})</span>
         </label>
+      </div>
+      <div class="panel continuous">
+        <label title="ONにすると、画面内の大きい画像を全部保存して←/→キーで次へ、を繰り返すボタンが出ます">
+          <input type="checkbox"><span class="sw"></span><span>連続DL</span>
+        </label>
         <span class="auto">
-          <button class="go" data-dir="left" title="画面内の大きい画像を全部保存して←キーで次へ、を繰り返す">◀ 連続</button>
-          <button class="go" data-dir="right" title="画面内の大きい画像を全部保存して→キーで次へ、を繰り返す">連続 ▶</button>
+          <button class="go" data-dir="left" title="画面内の大きい画像を全部保存して←キーで次へ、を繰り返す">◀ 開始</button>
+          <button class="go" data-dir="right" title="画面内の大きい画像を全部保存して→キーで次へ、を繰り返す">開始 ▶</button>
           <button class="stop" title="連続ダウンロードを止める(Escキーでも止まります)">停止</button>
           <span class="status"></span>
         </span>
       </div>`;
-    toggleInput = shadow.querySelector("input");
-    toggleInput.addEventListener("change", () => {
-      chrome.storage.local.set({ [FOCUS_STORAGE_KEY]: toggleInput.checked });
+    const focusPanel = shadow.querySelector(".panel.focus");
+    const contPanel = shadow.querySelector(".panel.continuous");
+    ui = {
+      focusPanel,
+      focusInput: focusPanel.querySelector("input"),
+      contPanel,
+      contInput: contPanel.querySelector("input"),
+      status: contPanel.querySelector(".status")
+    };
+    ui.focusInput.addEventListener("change", () => {
+      chrome.storage.local.set({ [FOCUS_STORAGE_KEY]: ui.focusInput.checked });
     });
-    shadow.querySelectorAll(".go").forEach((b) =>
+    ui.contInput.addEventListener("change", () => {
+      chrome.storage.local.set({ [CONTINUOUS_STORAGE_KEY]: ui.contInput.checked });
+    });
+    contPanel.querySelectorAll(".go").forEach((b) =>
       b.addEventListener("click", () => runAuto(b.dataset.dir))
     );
-    shadow.querySelector(".stop").addEventListener("click", () => stopAuto());
-    ui = { panel: shadow.querySelector(".panel"), status: shadow.querySelector(".status") };
+    contPanel.querySelector(".stop").addEventListener("click", () => stopAuto());
     document.documentElement.appendChild(host);
     return host;
   }
@@ -526,7 +544,7 @@
   let statusTimer = null;
   function renderAuto(message) {
     const running = !!(auto && !auto.stopped);
-    ui.panel.classList.toggle("running", running);
+    ui.contPanel.classList.toggle("running", running);
     clearTimeout(statusTimer);
     if (running) {
       ui.status.textContent = `${auto.dir === "left" ? "◀" : "▶"} ${auto.count}枚`;
@@ -538,23 +556,37 @@
 
   function applyFocusMode(on) {
     focusMode = !!on;
-    toggleInput.checked = focusMode;
-    ui.panel.classList.toggle("on", focusMode);
+    ui.focusInput.checked = focusMode;
+    ui.focusPanel.classList.toggle("on", focusMode);
+  }
+
+  function applyContinuousMode(on) {
+    continuousMode = !!on;
+    ui.contInput.checked = continuousMode;
+    ui.contPanel.classList.toggle("on", continuousMode);
+    if (!continuousMode && auto && !auto.stopped) stopAuto();
   }
 
   // ON/OFFは全タブ共通で保存し、他タブでの切り替えにも追従する
-  chrome.storage.local.get(FOCUS_STORAGE_KEY, (res) => applyFocusMode(res[FOCUS_STORAGE_KEY]));
+  chrome.storage.local.get([FOCUS_STORAGE_KEY, CONTINUOUS_STORAGE_KEY], (res) => {
+    applyFocusMode(res[FOCUS_STORAGE_KEY]);
+    applyContinuousMode(res[CONTINUOUS_STORAGE_KEY]);
+    resumeAutoIfNeeded();
+  });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && changes[FOCUS_STORAGE_KEY]) {
-      applyFocusMode(changes[FOCUS_STORAGE_KEY].newValue);
-    }
+    if (area !== "local") return;
+    if (changes[FOCUS_STORAGE_KEY]) applyFocusMode(changes[FOCUS_STORAGE_KEY].newValue);
+    if (changes[CONTINUOUS_STORAGE_KEY]) applyContinuousMode(changes[CONTINUOUS_STORAGE_KEY].newValue);
   });
 
   // ←/→キーでページ自体が切り替わるサイトでは、遷移後のページで続きから再開する
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(AUTO_SESSION_KEY) || "null");
-    if (saved && (saved.dir === "left" || saved.dir === "right")) {
-      setTimeout(() => runAuto(saved.dir, saved), AUTO_SETTLE_MS);
-    }
-  } catch (e) {}
+  function resumeAutoIfNeeded() {
+    if (!continuousMode) return;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(AUTO_SESSION_KEY) || "null");
+      if (saved && (saved.dir === "left" || saved.dir === "right")) {
+        setTimeout(() => runAuto(saved.dir, saved), AUTO_SETTLE_MS);
+      }
+    } catch (e) {}
+  }
 })();
